@@ -14,6 +14,8 @@ float_to_bin = lambda x: bin(float_to_int(x))
 # Anyhow this does not work properly, since the conversion int_to_float and float_to_int
 # have an error. This causes the guess wrong.
 #
+# For this issue, please check https://stackoverflow.com/questions/62067301/python-struct-to-convert-int-to-ieee-float
+#
 # def build_guess_values(value_type='mantissa', numbers=None, mantissa_nbits=10, guess_range=None):
 #     max_mantissa_nbits = 23
 #     if value_type == 'mantissa':
