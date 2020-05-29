@@ -74,8 +74,9 @@ def build_guess_values(value_type='mantissa', numbers=None, mantissa_nbits=10, g
         y = (np.asarray(numbers) * two_exponents.reshape(-1, 1)).reshape(-1)
         # because we do not take in account the sign, the value is in positive
         # so we need to change the low and high of the guess range
-        hi_range = np.max(np.abs(guess_range))
-        lo_range = np.min(np.abs(guess_range))
+        hi_range = max(np.abs(guess_range))
+        lo_range = max(np.min(guess_range), 0.0)
+        print('lo_range = %f, hi_range=%f' % (lo_range, hi_range))
         guess_numbers = y[(lo_range <= y) & (y <= hi_range)]
     elif value_type == 'sign':
         y = np.concatenate((np.asarray(numbers), -np.asarray(numbers)))
@@ -87,7 +88,7 @@ def build_guess_values(value_type='mantissa', numbers=None, mantissa_nbits=10, g
 
 def compute_corr_numbers(weight_hw, known_inputs, guess_numbers):
     # define Hamming Weight lambda function
-    hamming_weight = lambda x: bin(struct.unpack('@I', struct.pack('@f', x))[0]).count('1')
+    hamming_weight = lambda x: float_to_bin(x).count('1')
 
     hw = pd.DataFrame(columns=guess_numbers,
                       data=np.vectorize(hamming_weight)(np.asarray(known_inputs).reshape(-1, 1) * guess_numbers))
