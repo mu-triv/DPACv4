@@ -1,21 +1,20 @@
 import numpy as np
 import pandas as pd
 import struct
+from utils import *
 
 import numpy as np
 import pandas as pd
-import struct
 
-int_to_float = lambda n: struct.unpack('@f', struct.pack('@I', n))[0]
-float_to_int = lambda f: struct.unpack('@I', struct.pack('@f', f))[0]
-float_to_bin = lambda x: bin(float_to_int(x))
 max_mantissa_nbits = 23
+
 
 def build_guess_values(value_type='mantissa', numbers=None, mantissa_nbits=10, guess_range=None):
     if value_type == 'mantissa':
         # set the exponent 1
         e = (0x7f << max_mantissa_nbits)
-        guess_numbers = np.vectorize(int_to_float)(np.left_shift(np.arange(0, 1 << mantissa_nbits), max_mantissa_nbits - mantissa_nbits) | e)
+        guess_numbers = np.vectorize(int_to_float)(
+            np.left_shift(np.arange(0, 1 << mantissa_nbits), max_mantissa_nbits - mantissa_nbits) | e)
     elif value_type == 'exponent':
         # remove the exponent bits in mantissa
         m = np.vectorize(lambda x: x & ~(0xff << max_mantissa_nbits))(np.vectorize(float_to_int)(numbers))
@@ -53,12 +52,16 @@ def batina_recover_weight(weight_hw, known_inputs, guess_range, mantissa_nbits=1
     # step 1: guess the mantissa 10 bits
     guess_numbers = build_guess_values(value_type='mantissa', mantissa_nbits=mantissa_nbits, guess_range=guess_range)
     mantissa_processing_func = lambda x: bin(float_to_int(x) & 0x7fffff).count('1')
-    mantisa_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers, processing_func=mantissa_processing_func)
+    mantisa_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers,
+                                        processing_func=mantissa_processing_func)
     # step 2: guess the exponent 8 bits
-    guess_numbers = build_guess_values(value_type='exponent', numbers=mantisa_corr.sort_values(ascending=False).index[:max_number_of_best_candidates], guess_range=guess_range)
+    guess_numbers = build_guess_values(value_type='exponent', numbers=mantisa_corr.sort_values(ascending=False).index[
+                                                                      :max_number_of_best_candidates],
+                                       guess_range=guess_range)
     mantisa_exp_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers)
     # step 3: guess the sign 1 bit
-    guess_numbers = build_guess_values(value_type='sign', numbers=mantisa_exp_corr.sort_values(ascending=False).index[:max_number_of_best_candidates], guess_range=guess_range)
+    guess_numbers = build_guess_values(value_type='sign', numbers=mantisa_exp_corr.sort_values(ascending=False).index[
+                                                                  :max_number_of_best_candidates],
+                                       guess_range=guess_range)
     full_number_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers)
     return full_number_corr.sort_values(ascending=False).iloc[:10]
-
