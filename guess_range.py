@@ -92,6 +92,14 @@ def guess_number_range(secret_hw, guess_range, precision, known_inputs, number_v
 
 
 def get_subranges(guess_range, precision):
+    """
+    First, separate the guess range in two parts: positive range and negative range
+    extract the guess range in smaller and smaller guess ranges.
+    For example: when guess_range=[]
+    :param guess_range:
+    :param precision:
+    :return:
+    """
     low_range, high_range = guess_range
     assert(low_range < high_range)
     if low_range < 0 and high_range > 0:
@@ -106,7 +114,7 @@ def get_subranges(guess_range, precision):
         retval = []
         while ((high_range - low_range) > precision) and (low_range < high_range ):
             retval.append((low_range, high_range))
-            high_range =  10 ** np.ceil(np.log10(high_range / 10.0))
+            high_range = 10 ** np.ceil(np.log10(high_range / 10.0))
     return retval
 
 
