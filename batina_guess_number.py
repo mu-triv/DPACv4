@@ -62,7 +62,7 @@ def build_input_values(component='mantissa',  mantissa_nbits=10):
     elif component == 'exponent':
         retval = np.vectorize(int_to_float)(np.left_shift(np.arange(0, 2 << 8), total_mantissa_nbits))
     elif component == 'sign':
-        retval = np.random.uniform(-1.0, 1.0, 10)
+        retval = np.random.uniform(-1.0, 1.0, 1000)
     else:
         raise ValueError('the component is not supported')
     return retval
@@ -82,7 +82,7 @@ def compute_corr_numbers(weight_hw, known_inputs, guess_numbers):
     return hw.corrwith(pd.Series(weight_hw), method='pearson')
 
 
-def batina_recover_weight(secret_number, guess_range, mantissa_nbits=10, max_number_of_best_candidates=10, noise=None):
+def batina_recover_weight(secret_number, guess_range, mantissa_nbits=10, max_number_of_best_candidates=10, noise=None,):
     """
     recover the weight value (secret_number)
     :param secret_number:
@@ -125,4 +125,4 @@ def batina_recover_weight(secret_number, guess_range, mantissa_nbits=10, max_num
     if noise is not None:
         weight_hw = add_noise_function(weight_hw, signal_to_noise, frequency)
     full_number_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers)
-    return full_number_corr.sort_values(ascending=False).iloc[:10]
+    return full_number_corr.sort_values(ascending=False).iloc[:max_number_of_best_candidates]
