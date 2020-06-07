@@ -14,7 +14,7 @@ HIGH_RANGE = 'high search range'
 LOW_RANGE = 'low search range'
 
 
-def generate_known_inputs(exps=(-1, 3), nsize=3000):
+def generate_known_inputs(exps=[-2, 0, 2], nsize=5000):
     """
     generate input uniform random numbers. The number are split up
     in different exponential buckets.
@@ -22,11 +22,10 @@ def generate_known_inputs(exps=(-1, 3), nsize=3000):
     :param nsize: total numbers of input numbers
     :return: input uniform random numbers
     """
-    low, high = exps[0], (exps[1] + 1)
-    subsize = int(nsize / (high - low))
-    return pd.DataFrame(
-        data=[np.random.uniform(-10.0 ** i, 10.0 ** i, subsize) for i in range(low, high)],
-        index=range(low, high))
+    try:
+        return pd.DataFrame(data=[np.random.uniform(-10.0 ** i, 10.0 ** i, nsize) for i in exps], index=exps)
+    except TypeError:
+        return pd.Series(np.random.uniform(-10.0 ** exps, 10.0 ** exps, nsize))
 
 
 def compute_corr(secret_hw, guess_range, known_inputs, number_values=200):
@@ -91,6 +90,80 @@ def guess_number_range(secret_hw, guess_range, precision, known_inputs, number_v
     return low, high, best_corr.max()
 
 
+def filter_duplicated_ranges(candidates, precision):
+    """
+    :param candidates:
+    :param precision:
+    :return:
+    """
+    s = pd.Series((candidates.loc[LOW_VALUE] + candidates.loc[HIGH_VALUE])/2)
+    s = (s + precision*5e-1).round(decimals=int(-np.log10(precision)))
+    return [candidates[s[s == v].index].loc[CORRELATION].idxmax() for v in s.unique()]
+
+
+def get_range_candidates(secret_hws, guess_range, known_input_set, precision=1e-6, number_values=200):
+    """
+    The function is an extension of the function guess_number_range with the known_input_set.
+    :param secret_hws: the secret hamming weights in DataFrame
+    :param guess_range: the guess range
+    :param known_input_set: a set of known inputs
+    :param precision: precision
+    :param number_values: the number of guess values
+    :return: the Dataframe which contains all information...
+    """
+    low_range, high_range = guess_range
+    assert(low_range < high_range)
+    results = pd.DataFrame()
+    for inputs_idx in known_input_set.index:
+        print('inputs_idx=%d' % inputs_idx)
+        known_inputs = known_input_set.loc[inputs_idx]
+        if (high_range <= 0.0) or (low_range >= 0.0):
+            l, h, c = guess_number_range(secret_hw=secret_hws.loc[inputs_idx],
+                                         guess_range=(low_range, high_range),
+                                         precision=precision,
+                                         known_inputs=known_inputs,
+                                         number_values=number_values)
+            s = pd.Series(data=[l, h, c, inputs_idx], index=[LOW_VALUE, HIGH_VALUE, CORRELATION, INPUT_ID])
+            results = pd.concat([results, s], axis=1, ignore_index=True)
+        else:
+            neg_df = get_range_candidates(secret_hws=secret_hws, guess_range=(low_range, 0.0),
+                                          known_input_set=known_input_set, precision=precision,
+                                          number_values=number_values)
+            pos_df = get_range_candidates(secret_hws=secret_hws,
+                                          guess_range=(0.0, high_range),
+                                          known_input_set=known_input_set,
+                                          precision=precision,
+                                          number_values=number_values)
+            results = pd.concat([results, neg_df, pos_df], axis=1, ignore_index=True)
+    # get rid of overlap candidates
+    non_dubplicated_index = filter_duplicated_ranges(candidates=results, precision=precision)
+    return results[non_dubplicated_index].T.reset_index(drop=True).T
+
+
+def compute_ranges_corr(secret_hws, range_df, known_input_set, number_values):
+    corr_df = pd.DataFrame(columns=known_input_set.index, index=range_df.columns)
+    for input_idx in known_input_set.index:
+        corrs = pd.Series(index=range_df.columns)
+        for col in range_df.columns:
+            c = range_df[col]
+            corr = compute_corr(secret_hw=secret_hws.iloc[input_idx],
+                                guess_range=(c[LOW_VALUE], c[HIGH_VALUE]),
+                                known_inputs=known_input_set.iloc[input_idx],
+                                number_values=number_values)
+            corrs[col] = corr.max()
+        corr_df[input_idx] = corrs
+    return corr_df
+
+
+def dismiss_bad_ranges(secret_hws, range_df, known_input_set, number_values):
+    best_corr_df = compute_ranges_corr(secret_hws, range_df, known_input_set, number_values=number_values)
+    series_max = best_corr_df.apply(lambda x: x >= x.max(), axis=0).apply(lambda x: x.all(), axis=1)
+    retval = None
+    if series_max.any():
+        retval = range_df.T[series_max].iloc[0]
+    return retval
+
+
 def get_subranges(guess_range, precision):
     """
     First, separate the guess range in two parts: positive range and negative range
@@ -134,3 +207,4 @@ def advanced_guess_number_range(secret_number, guess_range, precision, known_inp
             print(s)
             results = pd.concat([results, s], axis=1, ignore_index=True)
     return results.T.reset_index(drop=True)
+

@@ -48,13 +48,19 @@ def compute_corr_numbers(weight_hw, known_inputs, guess_numbers, processing_func
     return hw.corrwith(pd.Series(weight_hw), method='pearson')
 
 
-def batina_recover_weight(weight_hw, known_inputs, guess_range, mantissa_nbits=10, max_number_of_best_candidates=10):
+def batina_recover_weight(secret_number, guess_range, mantissa_nbits=10, max_number_of_best_candidates=10):
     # step 1: guess the mantissa 10 bits
+    total_mantissa_nbits = 23
+    known_inputs = np.vectorize(int_to_float)(
+        np.left_shift(np.arange(0, 2 << mantissa_nbits), total_mantissa_nbits - mantissa_nbits))
+    weight_hw = np.vectorize(hamming_weight)(known_inputs * secret_number)
     guess_numbers = build_guess_values(value_type='mantissa', mantissa_nbits=mantissa_nbits, guess_range=guess_range)
     mantissa_processing_func = lambda x: bin(float_to_int(x) & 0x7fffff).count('1')
     mantisa_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers,
                                         processing_func=mantissa_processing_func)
     # step 2: guess the exponent 8 bits
+    known_inputs = np.vectorize(int_to_float)(np.left_shift(np.arange(0, 2 << 8), total_mantissa_nbits))
+    weight_hw = np.vectorize(hamming_weight)(known_inputs * secret_number)
     guess_numbers = build_guess_values(value_type='exponent', numbers=mantisa_corr.sort_values(ascending=False).index[
                                                                       :max_number_of_best_candidates],
                                        guess_range=guess_range)
@@ -63,5 +69,7 @@ def batina_recover_weight(weight_hw, known_inputs, guess_range, mantissa_nbits=1
     guess_numbers = build_guess_values(value_type='sign', numbers=mantisa_exp_corr.sort_values(ascending=False).index[
                                                                   :max_number_of_best_candidates],
                                        guess_range=guess_range)
+    known_inputs = np.random.uniform(-1.0, 1.0, 100)
+    weight_hw = np.vectorize(hamming_weight)(known_inputs * secret_number)
     full_number_corr = compute_corr_numbers(weight_hw, known_inputs, guess_numbers)
     return full_number_corr.sort_values(ascending=False).iloc[:10]
