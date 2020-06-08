@@ -55,12 +55,11 @@ def build_input_values(component='mantissa',  mantissa_nbits=10):
     :param mantissa_nbits: number of mantissa bits to be recovered
     :return: the list of input numbers
     """
-    total_mantissa_nbits = 23
     if component == 'mantissa':
         retval = np.vectorize(int_to_float)(
-            np.left_shift(np.arange(0, 2 << mantissa_nbits), total_mantissa_nbits - mantissa_nbits))
+            np.left_shift(np.arange(0, 2 << mantissa_nbits), max_mantissa_nbits - mantissa_nbits))
     elif component == 'exponent':
-        retval = np.vectorize(int_to_float)(np.left_shift(np.arange(0, 2 << 8), total_mantissa_nbits))
+        retval = np.vectorize(int_to_float)(np.left_shift(np.arange(0, 2 << 8), max_mantissa_nbits))
     elif component == 'sign':
         retval = np.random.uniform(-1.0, 1.0, 1000)
     else:
@@ -75,7 +74,7 @@ def compute_corr_numbers(weight_hw, known_inputs, guess_numbers):
     :param weight_hw: hamming weight of the known_inputs with the secret value
     :param known_inputs: known input values
     :param guess_numbers: guess numbers
-    :return:
+    :return: Pearson correlation of the hamming weights
     """
     hw = pd.DataFrame(columns=guess_numbers,
                       data=np.vectorize(hamming_weight)(known_inputs.reshape(-1, 1) * guess_numbers))
@@ -96,7 +95,6 @@ def batina_recover_weight(secret_number, guess_range, mantissa_nbits=10, max_num
         add_noise_function, signal_to_noise, frequency = noise
 
     # step 1: guess the mantissa 10 bits
-    total_mantissa_nbits = 23
     known_inputs = build_input_values(mantissa_nbits=mantissa_nbits, component='mantissa')
     weight_hw = np.vectorize(hamming_weight)(known_inputs * secret_number)
     if noise is not None:
