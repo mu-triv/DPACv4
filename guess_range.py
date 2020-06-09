@@ -2,8 +2,11 @@ import struct
 import numpy as np
 import pandas as pd
 
+import sys
+sys.path.append("NN-Recovery")
+
 # define Hamming Weight lambda function
-from utils import *
+from pybatina.utils import *
 
 
 LOW_VALUE = 'low value'
