@@ -55,6 +55,7 @@ def guess_number_range(secret_hw, guess_range, precision, known_inputs, number_v
     :param known_inputs: the known input values which is the random numbers
     :return: the range of the value
     """
+    print('guess_number_range')
     best_corr = None
     low, high = guess_range
     if (high - low) < precision:
@@ -96,6 +97,7 @@ def filter_duplicated_ranges(candidates, precision):
     :param precision:
     :return:
     """
+    print('filter_duplicated_ranges')
     s = pd.Series((candidates.loc[LOW_VALUE] + candidates.loc[HIGH_VALUE])/2)
     s = (s + precision*5e-1).round(decimals=int(-np.log10(precision)))
     return [candidates[s[s == v].index].loc[CORRELATION].idxmax() for v in s.unique()]
@@ -111,13 +113,14 @@ def get_range_candidates(secret_hws, guess_range, known_input_set, precision=1e-
     :param number_values: the number of guess values
     :return: the Dataframe which contains all information...
     """
+    print('get_range_candidates %s' % str(guess_range))
     low_range, high_range = guess_range
     assert(low_range < high_range)
     results = pd.DataFrame()
-    for inputs_idx in known_input_set.index:
-        print('inputs_idx=%d' % inputs_idx)
-        known_inputs = known_input_set.loc[inputs_idx]
-        if (high_range <= 0.0) or (low_range >= 0.0):
+    if (high_range <= 0.0) or (low_range >= 0.0):
+        for inputs_idx in known_input_set.index:
+            print('inputs_idx=%d' % inputs_idx)
+            known_inputs = known_input_set.loc[inputs_idx]
             l, h, c = guess_number_range(secret_hw=secret_hws.loc[inputs_idx],
                                          guess_range=(low_range, high_range),
                                          precision=precision,
@@ -125,19 +128,19 @@ def get_range_candidates(secret_hws, guess_range, known_input_set, precision=1e-
                                          number_values=number_values)
             s = pd.Series(data=[l, h, c, inputs_idx], index=[LOW_VALUE, HIGH_VALUE, CORRELATION, INPUT_ID])
             results = pd.concat([results, s], axis=1, ignore_index=True)
-        else:
-            neg_df = get_range_candidates(secret_hws=secret_hws, guess_range=(low_range, 0.0),
-                                          known_input_set=known_input_set, precision=precision,
-                                          number_values=number_values)
-            pos_df = get_range_candidates(secret_hws=secret_hws,
-                                          guess_range=(0.0, high_range),
-                                          known_input_set=known_input_set,
-                                          precision=precision,
-                                          number_values=number_values)
-            results = pd.concat([results, neg_df, pos_df], axis=1, ignore_index=True)
+    else:
+        neg_df = get_range_candidates(secret_hws=secret_hws, guess_range=(low_range, 0.0),
+                                      known_input_set=known_input_set, precision=precision,
+                                      number_values=number_values)
+        pos_df = get_range_candidates(secret_hws=secret_hws,
+                                      guess_range=(0.0, high_range),
+                                      known_input_set=known_input_set,
+                                      precision=precision,
+                                      number_values=number_values)
+        results = pd.concat([results, neg_df, pos_df], axis=1, ignore_index=True)
     # get rid of overlap candidates
-    non_dubplicated_index = filter_duplicated_ranges(candidates=results, precision=precision)
-    return results[non_dubplicated_index].T.reset_index(drop=True).T
+    non_duplicated_index = filter_duplicated_ranges(candidates=results, precision=precision)
+    return results[non_duplicated_index].T.reset_index(drop=True).T
 
 
 def compute_ranges_corr(secret_hws, range_df, known_input_set, number_values):

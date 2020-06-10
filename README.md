@@ -12,3 +12,8 @@ The fourth edition, organized by Télécom ParisTech, was launched in July 2013.
 1. Python3 Matplotlib and other python3 packages
 1. Reference traces (download one or several zip files and uncompress the zip files in a directory)
 
+## Installation
+
+```shell script
+git clone https://github.com/mu-triv/DPACv4.git
+```
